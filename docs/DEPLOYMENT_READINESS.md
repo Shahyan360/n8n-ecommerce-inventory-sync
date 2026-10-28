@@ -14,7 +14,18 @@ This public record contains aggregate synthetic evidence. Personal paths, runtim
 - A custom-format backup restored into an independent temporary database with matching business counts.
 - Official Compose configuration validation and public image manifest checks passed.
 
-The initial implementation host had no Docker Engine. Native checks did not establish container startup or Redis queue delivery. Public CI now builds and exercises the Docker queue stack on a Docker-enabled GitHub runner. The linked CI run is the source of truth for its exact commit; this record does not pre-claim a future green run.
+## Observed Docker CI checks
+
+[CI run 40619559757](https://github.com/Shahyan360/n8n-ecommerce-inventory-sync/actions/runs/40619559757) passed for commit `a2bb2f49e6572284dec71624230ebcea0e5e6cb8` on 2026-10-28:
+
+- All 72 automated tests passed: 64 backend cases and 8 browser-simulator cases.
+- Digest-pinned images built/started with PostgreSQL, Redis queue mode, the n8n main and worker, external task runners and auxiliary services.
+- Signed mock-provider deliveries completed through the actual queue-mode workflows; duplicates, quotes, reservations and cancellation passed.
+- The real demo Code node, reconciliation, daily summary, global Error Trigger and durable workflow retry passed.
+- PostgreSQL, Redis and the queue worker restarted; services returned healthy and signed order processing passed again.
+- TypeScript, workflow validation, public web build, release scanning and auxiliary production dependency audit passed.
+
+The initial implementation host had no Docker Engine, so native checks alone did not establish container startup or Redis delivery. The linked Docker-enabled GitHub runner supplies that evidence. CI results always apply to their exact commit; they do not replace deployment-specific live-provider checks.
 
 ## Public demo
 
