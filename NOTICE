@@ -1,0 +1,13 @@
+This repository's authored services, workflow definitions, documentation and
+browser demo are distributed under the MIT License in LICENSE.
+
+Third-party software retains its own licenses. In particular, n8n is distributed
+under its own Sustainable Use License and applicable enterprise terms; this
+repository does not relicense n8n or grant additional rights to its software.
+Review https://github.com/n8n-io/n8n/blob/master/LICENSE.md before operating or
+redistributing n8n. PostgreSQL, Redis, Node.js and npm dependencies retain their
+respective upstream licenses. No upstream runtime binaries are included here.
+
+Shopify, WooCommerce, Shippo, Slack, GitHub and Vercel names belong to their
+respective owners. This independent integration project is not affiliated with
+or endorsed by those services.

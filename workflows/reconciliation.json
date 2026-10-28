@@ -1,0 +1,114 @@
+{
+  "id": "commerceReconcile",
+  "name": "Order and Stock Reconciliation",
+  "active": false,
+  "nodes": [
+    {
+      "id": "f2d09629-2a72-46b5-b5ee-19d6e9fa01b3",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b0ceb984-b823-40a8-a54c-69b10c6faf94",
+      "name": "Recover Orders and Check Stock",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.INVENTORY_URL + '/internal/reconcile' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "commerceInternal",
+          "name": "Commerce Internal"
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "b8ee16e6-53b4-4894-931e-1429cb57cf5f",
+      "name": "Notify Discrepancies",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "commerceSlack",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Recover Orders and Check Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recover Orders and Check Stock": {
+      "main": [
+        [
+          {
+            "node": "Notify Discrepancies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 90,
+    "errorWorkflow": "commerceErrors",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "003d5384-60a8-4657-9ce2-2e5e8f2725bd",
+  "tags": []
+}

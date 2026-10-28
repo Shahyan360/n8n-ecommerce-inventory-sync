@@ -1,0 +1,200 @@
+{
+  "id": "commerceReorder",
+  "name": "Low-Stock and Reorder Monitoring",
+  "active": false,
+  "nodes": [
+    {
+      "id": "99a8cc55-e765-4e06-8291-7bb042ff9d58",
+      "name": "Sub-workflow Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "7092ca2e-6228-4ab9-917f-e32c2d3b559e",
+      "name": "Calculate Recommendations",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.INVENTORY_URL + '/internal/reorder' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "commerceInternal",
+          "name": "Commerce Internal"
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "e4ae21e1-60d5-4b0e-b053-93a82de3e4e8",
+      "name": "Send Operations Alerts",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "commerceSlack",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "83ce64a3-9646-4f4a-81c6-f076e4921b65",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        220
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "25bcdc9f-fd32-4912-b9e3-8cb195bc59a9",
+      "name": "Scheduled Stock Monitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        220
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.INVENTORY_URL + '/internal/reorder-monitor' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "commerceInternal",
+          "name": "Commerce Internal"
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "02f96b58-933b-4bb2-afdd-f8cb76858087",
+      "name": "Scheduled Alerts",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        520,
+        220
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "commerceSlack",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Sub-workflow Input": {
+      "main": [
+        [
+          {
+            "node": "Calculate Recommendations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Recommendations": {
+      "main": [
+        [
+          {
+            "node": "Send Operations Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Scheduled Stock Monitor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scheduled Stock Monitor": {
+      "main": [
+        [
+          {
+            "node": "Scheduled Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 90,
+    "errorWorkflow": "commerceErrors",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "497f1aa7-ab2c-4b0a-ac37-48f5ca3fc25e",
+  "tags": []
+}

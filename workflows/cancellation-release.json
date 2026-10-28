@@ -1,0 +1,74 @@
+{
+  "id": "commerceCancel",
+  "name": "Order Cancellation and Reservation Release",
+  "active": false,
+  "nodes": [
+    {
+      "id": "9f8b5d16-c1af-43e2-b4a1-e87901f3f1ea",
+      "name": "Sub-workflow Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "51d53b3e-3504-43cb-9848-8b8b250dde13",
+      "name": "Apply Cancellation or Fulfillment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.INVENTORY_URL + '/internal/cancel' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "commerceInternal",
+          "name": "Commerce Internal"
+        }
+      },
+      "retryOnFail": false
+    }
+  ],
+  "connections": {
+    "Sub-workflow Input": {
+      "main": [
+        [
+          {
+            "node": "Apply Cancellation or Fulfillment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 90,
+    "errorWorkflow": "commerceErrors",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "5fcd2cb2-c976-4846-b860-bbf3be77171d",
+  "tags": []
+}

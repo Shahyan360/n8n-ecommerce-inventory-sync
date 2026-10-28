@@ -1,0 +1,104 @@
+{
+  "id": "commerceErrors",
+  "name": "Global Error Handling and Recovery",
+  "active": false,
+  "nodes": [
+    {
+      "id": "834fca13-32a3-430d-821e-db4854f51183",
+      "name": "Workflow Error",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "2f442aac-92fb-43d9-851f-e6e02fd69340",
+      "name": "Record Failure and Enqueue Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.INVENTORY_URL + '/internal/errors' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "commerceInternal",
+          "name": "Commerce Internal"
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "d596dd22-9530-4e0f-93cf-8aec151f494d",
+      "name": "Notify Operations",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "commerceSlack",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Workflow Error": {
+      "main": [
+        [
+          {
+            "node": "Record Failure and Enqueue Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Failure and Enqueue Alert": {
+      "main": [
+        [
+          {
+            "node": "Notify Operations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 90,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "ca8e4c20-4dd7-461c-9ea3-c3f04bc4389a",
+  "tags": []
+}

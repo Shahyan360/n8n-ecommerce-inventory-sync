@@ -1,0 +1,279 @@
+{
+  "id": "commerceProcess",
+  "name": "Deduplication and Order Processing",
+  "active": false,
+  "nodes": [
+    {
+      "id": "dbbd5473-b9c4-4ceb-8cc1-6c5e94514d02",
+      "name": "Sub-workflow Input",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "inputSource": "passthrough"
+      }
+    },
+    {
+      "id": "e0271924-c523-44c4-921c-7cd2b1dcb6d5",
+      "name": "Normalize and Validate",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "commerceNormalize",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "2f689bfb-03e4-458b-b73b-fb24cd163982",
+      "name": "Deduplicate and Persist Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.INVENTORY_URL + '/internal/prepare' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "commerceInternal",
+          "name": "Commerce Internal"
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "db3de953-6c71-4674-bb6f-51a38c7fa0b5",
+      "name": "Cancellation and Fulfillment",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        780,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "commerceCancel",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "c8aeabc2-5ce6-4a77-9853-d05ab6fc7096",
+      "name": "Allocate Inventory",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1040,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "commerceAllocate",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "f6043703-eedc-466d-bd32-3c6493753217",
+      "name": "Calculate Shipping",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1300,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "commerceShipping",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "6614b5b9-f121-411f-bfe8-a35046346501",
+      "name": "Reorder Recommendations",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1560,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "commerceReorder",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "395df981-fc75-48d1-a9cb-6407c0605f11",
+      "name": "Complete Durable Event",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1820,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.INVENTORY_URL + '/internal/finish' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "commerceInternal",
+          "name": "Commerce Internal"
+        }
+      },
+      "retryOnFail": false
+    }
+  ],
+  "connections": {
+    "Sub-workflow Input": {
+      "main": [
+        [
+          {
+            "node": "Normalize and Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize and Validate": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate and Persist Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate and Persist Order": {
+      "main": [
+        [
+          {
+            "node": "Cancellation and Fulfillment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancellation and Fulfillment": {
+      "main": [
+        [
+          {
+            "node": "Allocate Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Allocate Inventory": {
+      "main": [
+        [
+          {
+            "node": "Calculate Shipping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Shipping": {
+      "main": [
+        [
+          {
+            "node": "Reorder Recommendations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reorder Recommendations": {
+      "main": [
+        [
+          {
+            "node": "Complete Durable Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 90,
+    "errorWorkflow": "commerceErrors",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "b92dd441-0db1-4ca9-b437-4cfbab96bf00",
+  "tags": []
+}

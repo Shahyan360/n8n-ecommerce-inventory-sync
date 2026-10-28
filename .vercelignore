@@ -1,0 +1,10 @@
+.git
+.runtime
+.env*
+node_modules
+dist
+reports
+backups
+coverage
+config/stores.live.json
+web/dist

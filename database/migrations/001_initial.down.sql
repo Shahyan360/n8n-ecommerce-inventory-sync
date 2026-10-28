@@ -1,0 +1,1 @@
+DROP TABLE notification_outbox,integration_errors,workflow_audit_logs,fulfillment_events,shipping_quotes,reorder_alerts,reorder_rules,inventory_movements,inventory_reservations,inventory_balances,warehouses,order_items,sku_aliases,products,orders,integration_events,stores CASCADE;

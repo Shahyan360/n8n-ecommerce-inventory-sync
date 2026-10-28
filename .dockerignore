@@ -1,0 +1,9 @@
+node_modules
+.runtime
+.env
+config/stores.live.json
+.git
+reports
+backups
+.vercel
+web/dist

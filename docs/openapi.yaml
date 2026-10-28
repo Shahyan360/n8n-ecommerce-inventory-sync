@@ -1,0 +1,110 @@
+openapi: 3.1.0
+info:
+  title: Commerce Automation Auxiliary API
+  version: 1.0.0
+  description: Provider ingestion is on port 3100. Internal operations are on port 3001 and require the private header credential. Source payloads are protected database data.
+servers:
+  - url: http://localhost:3001
+components:
+  securitySchemes:
+    internalToken:
+      type: apiKey
+      in: header
+      name: x-internal-token
+  schemas:
+    Context:
+      type: object
+      required: [eventId]
+      properties:
+        eventId: {type: string, format: uuid}
+        orderId: {type: string, format: uuid}
+        skip: {type: boolean}
+        state: {type: string}
+  requestBodies:
+    Context:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Context'}
+  responses:
+    Context:
+      description: Durable context for the next workflow stage
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Context'}
+security: [{internalToken: []}]
+paths:
+  /health:
+    get:
+      security: []
+      responses:
+        '200': {description: Service and database are reachable}
+  /webhooks/{platform}/{storeId}:
+    servers: [{url: http://localhost:3100}]
+    post:
+      security: []
+      description: Raw JSON HMAC-SHA256 signature is mandatory. Shopify requires X-Shopify-Hmac-SHA256, X-Shopify-Shop-Domain, X-Shopify-Topic, X-Shopify-Event-Id. WooCommerce requires X-WC-Webhook-Signature, X-WC-Webhook-Source, X-WC-Webhook-Topic, X-WC-Webhook-Delivery-ID. Original bytes must be preserved. Never log this request body.
+      parameters:
+        - {in: path, name: platform, required: true, schema: {type: string, enum: [shopify, woocommerce]}}
+        - {in: path, name: storeId, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object, additionalProperties: true}
+      responses:
+        '202': {description: Signature verified and delivery durably persisted; includes eventId and duplicate}
+        '401': {description: Invalid signature or store identity}
+        '400': {description: Invalid JSON, topic or event ID}
+        '404': {description: Unknown store}
+  /internal/normalize:
+    post:
+      requestBody: {$ref: '#/components/requestBodies/Context'}
+      responses: {'200': {$ref: '#/components/responses/Context'}}
+  /internal/prepare:
+    post:
+      requestBody: {$ref: '#/components/requestBodies/Context'}
+      responses: {'200': {$ref: '#/components/responses/Context'}}
+  /internal/cancel:
+    post:
+      requestBody: {$ref: '#/components/requestBodies/Context'}
+      responses: {'200': {$ref: '#/components/responses/Context'}}
+  /internal/allocate:
+    post:
+      requestBody: {$ref: '#/components/requestBodies/Context'}
+      responses: {'200': {$ref: '#/components/responses/Context'}}
+  /internal/shipping:
+    post:
+      requestBody: {$ref: '#/components/requestBodies/Context'}
+      responses: {'200': {$ref: '#/components/responses/Context'}, '500': {description: Quote failed; reservations retained for retry/expiry}}
+  /internal/reorder:
+    post:
+      requestBody: {$ref: '#/components/requestBodies/Context'}
+      responses: {'200': {$ref: '#/components/responses/Context'}}
+  /internal/finish:
+    post:
+      requestBody: {$ref: '#/components/requestBodies/Context'}
+      responses: {'200': {$ref: '#/components/responses/Context'}}
+  /internal/notifications:
+    post:
+      responses: {'200': {description: Flush up to ten durable notifications and return the input context}}
+  /internal/reorder-monitor:
+    post:
+      responses: {'200': {description: Reorder rules evaluated; fresh correlation ID returned}}
+  /internal/reconcile:
+    post:
+      responses: {'200': {description: Recovery, expiry, mismatch and stuck-order counters}}
+  /internal/summary:
+    post:
+      responses: {'200': {description: Daily counts queued for Slack}}
+  /internal/errors:
+    post:
+      responses: {'200': {description: n8n error recorded and operational alert queued}}
+  /internal/report:
+    get:
+      responses: {'200': {description: Operational orders, balances, reservations, quotes, alerts and event delivery status}}
+  /internal/retry:
+    servers: [{url: http://localhost:3100}]
+    post:
+      requestBody: {$ref: '#/components/requestBodies/Context'}
+      responses: {'200': {description: Requeue an investigated dead-letter event only}}

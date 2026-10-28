@@ -1,0 +1,47 @@
+{
+  "name": "n8n-ecommerce-inventory-sync",
+  "version": "1.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "n8n e-commerce order, inventory and shipping automation with atomic PostgreSQL reservations and an isolated public demo.",
+  "repository": {"type":"git","url":"https://github.com/Shahyan360/n8n-ecommerce-inventory-sync.git"},
+  "type": "module",
+  "engines": { "node": ">=24.0.0 <25" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "build:web": "node web/build.mjs",
+    "preview:web": "node web/preview.mjs",
+    "release:check": "node scripts/release-check.mjs",
+    "test:db:prepare": "node scripts/test-database.mjs",
+    "verify:stack": "node scripts/verify-stack.mjs",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
+    "migrate": "tsx scripts/database.ts up",
+    "migrate:down": "tsx scripts/database.ts down",
+    "seed": "tsx scripts/database.ts seed",
+    "start:inventory": "tsx services/inventory-service/server.ts",
+    "start:gateway": "tsx services/webhook-gateway/server.ts",
+    "start:mocks": "tsx services/mock-providers/server.ts",
+    "demo": "tsx scripts/demo.ts",
+    "workflows:generate": "node scripts/workflows.mjs",
+    "verify:static": "node scripts/verify-static.mjs",
+    "verify:runtime": "tsx scripts/verify-runtime.ts",
+    "setup": "node scripts/setup.mjs"
+  },
+  "dependencies": {
+    "dotenv": "18.0.9",
+    "fastify": "5.12.7",
+    "pg": "8.23.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "@types/pg": "8.23.1",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5",
+    "yaml": "2.9.1"
+  }
+}

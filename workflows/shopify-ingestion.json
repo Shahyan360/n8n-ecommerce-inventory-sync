@@ -1,0 +1,112 @@
+{
+  "id": "commerceShopify",
+  "name": "Shopify Order Webhook Ingestion",
+  "active": false,
+  "nodes": [
+    {
+      "id": "f6185158-a3d6-477d-907b-409d34f5b59b",
+      "name": "Authenticated Gateway Delivery",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "commerce-shopify",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "commerce-shopify",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "commerceInternal",
+          "name": "Commerce Internal"
+        }
+      }
+    },
+    {
+      "id": "4b488562-0d85-4b07-b96c-24dd82d90195",
+      "name": "Read Durable Event Reference",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c5d89944-97d3-4098-93b0-45c8847fa43d",
+              "name": "eventId",
+              "value": "={{ $json.body.eventId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8675db70-3dc6-4733-833f-9a63280060dc",
+      "name": "Shared Order Processing",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "commerceProcess",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Authenticated Gateway Delivery": {
+      "main": [
+        [
+          {
+            "node": "Read Durable Event Reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Durable Event Reference": {
+      "main": [
+        [
+          {
+            "node": "Shared Order Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 90,
+    "errorWorkflow": "commerceErrors",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "a138b9ea-1392-468e-9a35-fc16b87afe4b",
+  "tags": []
+}

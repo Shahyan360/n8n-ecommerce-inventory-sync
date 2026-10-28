@@ -1,0 +1,96 @@
+{
+  "id": "commerceDemo",
+  "name": "Local End-to-End Demo Trigger",
+  "active": false,
+  "nodes": [
+    {
+      "id": "627786d5-205b-448a-b1da-8047779a72a7",
+      "name": "Run Local Demo",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "1650a841-bacf-4c34-9472-526ee24fb83f",
+      "name": "Send Signed Demo Orders",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.MOCK_URL + \"/admin/demo\" }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "commerceInternal",
+          "name": "Commerce Internal"
+        }
+      },
+      "retryOnFail": false
+    },
+    {
+      "id": "7cda6ef9-6e41-4dd3-a638-bb2127315b67",
+      "name": "Demo Acceptance Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "jsCode": "return [{json: {accepted: $json.accepted, note: \"Signed webhooks accepted; durable dispatch processes them through provider ingestion workflows.\"}}];"
+      }
+    }
+  ],
+  "connections": {
+    "Run Local Demo": {
+      "main": [
+        [
+          {
+            "node": "Send Signed Demo Orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Signed Demo Orders": {
+      "main": [
+        [
+          {
+            "node": "Demo Acceptance Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 90,
+    "errorWorkflow": "commerceErrors",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "ce0fdad1-705f-428d-ba0c-a2e8c5784e0c",
+  "tags": []
+}

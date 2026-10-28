@@ -1,0 +1,20 @@
+import {beforeAll,beforeEach,afterAll,it,expect} from 'vitest';
+import {randomUUID} from 'node:crypto';
+import {gatewayApp} from '../../services/webhook-gateway/server.js';
+import {migrate} from '../../scripts/database.js';
+import {resetDatabase,runOrder,orderState} from '../helpers.js';
+import {shopifyFixture,wooFixture} from '../../services/mock-providers/fixtures.js';
+import {mockApp} from '../../services/mock-providers/server.js';
+import {sign} from '../../services/shared/signatures.js';
+import {config} from '../../services/shared/config.js';
+import {pool} from '../../services/shared/db.js';
+const app=gatewayApp(),mocks=mockApp();
+beforeAll(async()=>{await migrate();await mocks.listen({host:'127.0.0.1',port:Number(new URL(config.MOCK_URL).port)});});beforeEach(resetDatabase);afterAll(async()=>{await app.close();await mocks.close();await pool.end();});
+it.each(['shopify','woocommerce'] as const)('accepts signed %s delivery promptly into durable inbox',async platform=>{
+  const payload=JSON.stringify(platform==='shopify'?shopifyFixture():wooFixture());const shop=platform==='shopify';
+  const headers=shop?{'x-shopify-hmac-sha256':sign(Buffer.from(payload),config.MOCK_WEBHOOK_SECRET),'x-shopify-shop-domain':'demo.myshopify.com','x-shopify-topic':'orders/create','x-shopify-event-id':randomUUID()}:{'x-wc-webhook-signature':sign(Buffer.from(payload),config.MOCK_WEBHOOK_SECRET),'x-wc-webhook-source':'https://woo.example.test/','x-wc-webhook-topic':'order.created','x-wc-webhook-delivery-id':randomUUID()};
+  const start=Date.now();const response=await app.inject({method:'POST',url:`/webhooks/${platform}/${shop?'shop-us':'woo-us'}`,headers:{...headers,'content-type':'application/json'},payload});expect(response.statusCode).toBe(202);expect(Date.now()-start).toBeLessThan(1000);expect((await pool.query('SELECT status FROM integration_events')).rows[0].status).toBe('pending');
+  const duplicate=await app.inject({method:'POST',url:`/webhooks/${platform}/${shop?'shop-us':'woo-us'}`,headers:{...headers,'content-type':'application/json'},payload});expect(duplicate.json().duplicate).toBe(true);
+});
+it('rejects tampered raw bytes and unauthorized internal recovery',async()=>{const payload=JSON.stringify(shopifyFixture());const res=await app.inject({method:'POST',url:'/webhooks/shopify/shop-us',headers:{'content-type':'application/json','x-shopify-hmac-sha256':sign(Buffer.from(payload),config.MOCK_WEBHOOK_SECRET)},payload:payload+' '});expect(res.statusCode).toBe(401);expect((await app.inject({method:'POST',url:'/internal/retry',payload:{eventId:randomUUID()}})).statusCode).toBe(401);});
+it('runs the application order, inventory, shipping, reorder lifecycle against PostgreSQL and mock HTTP',async()=>{const c=await runOrder(shopifyFixture());expect(await orderState(c.orderId!)).toBe('READY_FOR_FULFILLMENT');expect((await pool.query('SELECT * FROM reorder_alerts')).rowCount).toBeGreaterThan(0);expect((await pool.query('SELECT * FROM shipping_quotes WHERE selected')).rowCount).toBe(1);});

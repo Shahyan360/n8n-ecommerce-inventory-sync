@@ -1,0 +1,6 @@
+export function shopifyFixture(id='1001',sku='TSHIRT-BLUE-M',quantity=2){
+  return {id,created_at:'2026-10-28T08:00:00Z',updated_at:'2026-10-28T08:00:00Z',currency:'USD',total_price:'49.98',total_tax:'0.00',total_discounts:'0.00',financial_status:'paid',fulfillment_status:null,cancelled_at:null,email:'demo@example.test',customer:{id:99,first_name:'Demo'},shipping_address:{name:'Demo Customer',address1:'965 Mission St',city:'San Francisco',province_code:'CA',zip:'94103',country_code:'US'},line_items:[{id:`${id}-1`,sku,product_id:101,variant_id:201,quantity,price:'24.99',grams:250,requires_shipping:true}],shipping_lines:[]};
+}
+export function wooFixture(id='2001',sku='MUG-WHITE',quantity=2){
+  return {id,date_created_gmt:'2026-10-28T08:00:00',date_modified_gmt:'2026-10-28T08:00:00',currency:'USD',total:'29.98',total_tax:'0',discount_total:'0',shipping_total:'0',status:'processing',customer_id:77,billing:{first_name:'Demo',email:'demo@example.test'},shipping:{first_name:'Demo',last_name:'Customer',address_1:'350 5th Ave',city:'New York',state:'NY',postcode:'10118',country:'US'},line_items:[{id:`${id}-1`,sku,product_id:102,variation_id:202,quantity,price:14.99,total:String(14.99*quantity),meta_data:[]}]};
+}

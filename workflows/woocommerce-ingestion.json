@@ -1,0 +1,112 @@
+{
+  "id": "commerceWoo",
+  "name": "WooCommerce Order Webhook Ingestion",
+  "active": false,
+  "nodes": [
+    {
+      "id": "71f70851-cd40-4ae8-aec8-fa7a1ef4e9f4",
+      "name": "Authenticated Gateway Delivery",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "commerce-woocommerce",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "commerce-woocommerce",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "commerceInternal",
+          "name": "Commerce Internal"
+        }
+      }
+    },
+    {
+      "id": "ada1d6d4-1e69-46ed-8d44-4fa4dc79a003",
+      "name": "Read Durable Event Reference",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        260,
+        0
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "bd69878c-23f9-45e1-8142-841f0e4b64ef",
+              "name": "eventId",
+              "value": "={{ $json.body.eventId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "402c9f76-668a-4c93-b251-68438eaa3b7e",
+      "name": "Shared Order Processing",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        520,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "commerceProcess",
+          "mode": "id"
+        },
+        "mode": "once",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Authenticated Gateway Delivery": {
+      "main": [
+        [
+          {
+            "node": "Read Durable Event Reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Durable Event Reference": {
+      "main": [
+        [
+          {
+            "node": "Shared Order Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "executionTimeout": 90,
+    "errorWorkflow": "commerceErrors",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "pinData": {},
+  "versionId": "cedd714b-a164-4c56-9956-62fd051e4242",
+  "tags": []
+}

@@ -1,0 +1,91 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    name: TypeScript, PostgreSQL and public release checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.6-bookworm@sha256:bbf83594798e144bff365a9c191c5d779f181fb3135902064ab8ff11918020fc
+        env:
+          POSTGRES_DB: commerce
+          POSTGRES_USER: commerce_owner
+          POSTGRES_PASSWORD: ci-postgres-only
+        ports: [55432:5432]
+        options: --health-cmd "pg_isready -U commerce_owner -d commerce" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      MIGRATION_DATABASE_URL: postgresql://commerce_owner:ci-postgres-only@127.0.0.1:55432/commerce
+      TEST_MIGRATION_DATABASE_URL: postgresql://commerce_owner:ci-postgres-only@127.0.0.1:55432/commerce_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run setup
+      - run: npm run test:db:prepare
+      - run: npm run build
+      - run: npm run verify:static
+      - run: npm test
+      - run: npm run build:web
+      - run: npm run release:check
+      - run: npm audit --omit=dev --audit-level=high
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: automated-test-results
+          path: reports/tests.json
+          if-no-files-found: ignore
+  docker:
+    name: Docker, Redis queue and actual n8n workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run setup
+      - run: docker compose --profile mock config --quiet
+      - run: docker compose --profile mock build
+      - run: docker compose --profile mock up -d
+      - run: npm run verify:stack
+      - name: Restart stateful services and queue worker
+        run: |
+          docker compose restart postgres redis n8n-worker
+          node scripts/wait-stack.mjs
+          npm run verify:runtime
+      - name: Inspect service health
+        if: always()
+        run: docker compose --profile mock ps --all
+      - name: Failure diagnostics
+        if: failure()
+        run: docker compose --profile mock logs --tail 80
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: n8n-mock-runtime-results
+          path: |
+            reports/runtime.json
+            reports/n8n-operations.json
+          if-no-files-found: ignore
+      - name: Stop disposable CI stack
+        if: always()
+        run: docker compose --profile mock down --volumes

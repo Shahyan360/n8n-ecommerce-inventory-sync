@@ -1,0 +1,12 @@
+import 'dotenv/config';
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import pg from 'pg';
+import {execFileSync} from 'node:child_process';
+import {pgTool} from './postgres-tools.mjs';
+const query=async()=>{const db=new pg.Client({connectionString:process.env.DATABASE_URL});await db.connect();try{return (await db.query('SELECT (SELECT count(*)::int FROM orders) AS orders,(SELECT COALESCE(sum(reserved),0)::int FROM inventory_balances) AS reserved,(SELECT count(*)::int FROM shipping_quotes) AS quotes')).rows[0];}finally{await db.end();}};
+const before=await query();const data=path.resolve('.runtime/pgdata');assert(fs.existsSync(path.join(data,'PG_VERSION')));
+execFileSync(pgTool('pg_ctl'),['-D',data,'-l',path.resolve('.runtime/postgres.log'),'-m','fast','-w','restart'],{windowsHide:true,stdio:'ignore',timeout:30000});
+const after=await query();assert.deepEqual(after,before);
+const result={verifiedAt:new Date().toISOString(),actualIsolatedPostgresRestart:true,before,after};fs.writeFileSync('reports/database-restart.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));

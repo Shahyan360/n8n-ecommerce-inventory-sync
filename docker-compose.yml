@@ -1,0 +1,162 @@
+name: n8n-ecommerce-inventory-sync
+x-app: &app
+  build: .
+  env_file: .env
+  environment: &app-env
+    BIND_HOST: 0.0.0.0
+    DATABASE_URL: postgresql://commerce_app:${APP_DB_PASSWORD:?Run npm run setup}@postgres:5432/commerce
+    INVENTORY_URL: http://inventory:3001
+    GATEWAY_URL: http://gateway:3100
+    N8N_URL: http://n8n:5678
+    MOCK_URL: http://mocks:3002
+  restart: unless-stopped
+  networks: [backend, egress]
+  security_opt: [no-new-privileges:true]
+  read_only: true
+  tmpfs: [/tmp]
+x-n8n-env: &n8n-env
+  DB_TYPE: postgresdb
+  DB_POSTGRESDB_HOST: postgres
+  DB_POSTGRESDB_DATABASE: n8n
+  DB_POSTGRESDB_USER: n8n_app
+  DB_POSTGRESDB_PASSWORD: ${N8N_DB_PASSWORD:?Run npm run setup}
+  EXECUTIONS_MODE: queue
+  QUEUE_BULL_REDIS_HOST: redis
+  QUEUE_BULL_REDIS_PASSWORD: ${INTERNAL_TOKEN:?Run npm run setup}
+  N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Run npm run setup}
+  N8N_DIAGNOSTICS_ENABLED: 'false'
+  N8N_VERSION_NOTIFICATIONS_ENABLED: 'false'
+  N8N_PERSONALIZATION_ENABLED: 'false'
+  N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
+  N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: 'true'
+  N8N_SECURE_COOKIE: 'false'
+  N8N_RUNNERS_MODE: external
+  N8N_RUNNERS_AUTH_TOKEN: ${RUNNER_AUTH_TOKEN:?Run npm run setup}
+  N8N_RUNNERS_BROKER_LISTEN_ADDRESS: 0.0.0.0
+  N8N_RUNNERS_TASK_TIMEOUT: '60'
+  N8N_UNVERIFIED_PACKAGES_ENABLED: 'false'
+  N8N_DISABLED_MODULES: chat-hub,agents,agent-evals,workflow-builder,instance-ai,quick-connect,mcp,mcp-discovery,mcp-registry
+  NODES_INCLUDE: '["n8n-nodes-base.webhook","n8n-nodes-base.httpRequest","n8n-nodes-base.executeWorkflow","n8n-nodes-base.executeWorkflowTrigger","n8n-nodes-base.set","n8n-nodes-base.scheduleTrigger","n8n-nodes-base.errorTrigger","n8n-nodes-base.manualTrigger","n8n-nodes-base.code"]'
+  EXECUTIONS_DATA_PRUNE: 'true'
+  EXECUTIONS_DATA_MAX_AGE: '168'
+  GENERIC_TIMEZONE: Asia/Karachi
+  INVENTORY_URL: http://inventory:3001
+  MOCK_URL: http://mocks:3002
+  OFFLOAD_MANUAL_EXECUTIONS_TO_WORKERS: 'true'
+services:
+  postgres:
+    image: postgres:18.6-bookworm@sha256:bbf83594798e144bff365a9c191c5d779f181fb3135902064ab8ff11918020fc
+    environment:
+      POSTGRES_DB: commerce
+      POSTGRES_USER: commerce_owner
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run npm run setup}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Run npm run setup}
+      N8N_DB_PASSWORD: ${N8N_DB_PASSWORD:?Run npm run setup}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./scripts/postgres-init.sh:/docker-entrypoint-initdb.d/10-app.sh:ro
+    ports: ['127.0.0.1:55432:5432']
+    networks: [backend]
+    restart: unless-stopped
+    healthcheck: {test: ['CMD-SHELL','pg_isready -U commerce_owner -d commerce'], interval: 5s, timeout: 5s, retries: 20}
+  redis:
+    image: redis:8.2.2-bookworm@sha256:4521b581dbddea6e7d81f8fe95ede93f5648aaa66a9dacd581611bf6fe7527bd
+    command: [redis-server,--appendonly,'yes',--requirepass,'${INTERNAL_TOKEN:?Run npm run setup}']
+    volumes: [redis-data:/data]
+    networks: [backend]
+    restart: unless-stopped
+    environment: {REDISCLI_AUTH: '${INTERNAL_TOKEN}'}
+    healthcheck: {test: ['CMD','redis-cli','ping'], interval: 5s, timeout: 5s, retries: 20}
+  migrate:
+    <<: *app
+    restart: 'no'
+    environment:
+      <<: *app-env
+      MIGRATION_DATABASE_URL: postgresql://commerce_owner:${POSTGRES_PASSWORD}@postgres:5432/commerce
+    command: [node,dist/scripts/database.js,up]
+    depends_on: {postgres: {condition: service_healthy}}
+  seed:
+    <<: *app
+    restart: 'no'
+    environment:
+      <<: *app-env
+      MIGRATION_DATABASE_URL: postgresql://commerce_owner:${POSTGRES_PASSWORD}@postgres:5432/commerce
+    command: [node,dist/scripts/database.js,seed]
+    depends_on: {migrate: {condition: service_completed_successfully}}
+  inventory:
+    <<: *app
+    command: [node,dist/services/inventory-service/server.js]
+    ports: ['127.0.0.1:3001:3001']
+    depends_on: {migrate: {condition: service_completed_successfully}}
+    healthcheck: {test: ['CMD','node','-e','fetch("http://localhost:3001/health").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'],interval: 5s,timeout: 5s,retries: 20}
+  mocks:
+    <<: *app
+    profiles: [mock]
+    command: [node,dist/services/mock-providers/server.js]
+    ports: ['127.0.0.1:3002:3002']
+    depends_on: {inventory: {condition: service_healthy}}
+    healthcheck: {test: ['CMD','node','-e','fetch("http://localhost:3002/health").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'],interval: 5s,timeout: 5s,retries: 20}
+  n8n-import:
+    image: n8nio/n8n:2.45.4@sha256:80e23ced901f0e22597d4f3464e3aaf9d835372262ea6f08ef760d8ca35df25c
+    environment:
+      <<: *n8n-env
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN}
+    entrypoint: [/bin/sh,/scripts/docker-import.sh]
+    restart: 'no'
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./workflows:/workflows:ro
+      - ./scripts/docker-import.sh:/scripts/docker-import.sh:ro
+    networks: [backend]
+    depends_on: {postgres: {condition: service_healthy},redis: {condition: service_healthy},seed: {condition: service_completed_successfully}}
+  n8n:
+    image: n8nio/n8n:2.45.4@sha256:80e23ced901f0e22597d4f3464e3aaf9d835372262ea6f08ef760d8ca35df25c
+    environment: *n8n-env
+    ports: ['127.0.0.1:5678:5678']
+    volumes: [n8n-data:/home/node/.n8n]
+    networks: [backend,egress]
+    restart: unless-stopped
+    depends_on: {n8n-import: {condition: service_completed_successfully}}
+    healthcheck: {test: ['CMD','wget','-qO-','http://localhost:5678/healthz/readiness'],interval: 10s,timeout: 5s,retries: 30}
+  n8n-worker:
+    image: n8nio/n8n:2.45.4@sha256:80e23ced901f0e22597d4f3464e3aaf9d835372262ea6f08ef760d8ca35df25c
+    command: [worker,--concurrency=5]
+    environment:
+      <<: *n8n-env
+      QUEUE_HEALTH_CHECK_ACTIVE: 'true'
+    volumes: [n8n-data:/home/node/.n8n]
+    networks: [backend,egress]
+    restart: unless-stopped
+    depends_on: {n8n: {condition: service_healthy}}
+    healthcheck: {test: ['CMD','wget','-qO-','http://localhost:5678/healthz/readiness'],interval: 10s,timeout: 5s,retries: 30}
+  gateway:
+    <<: *app
+    command: [node,dist/services/webhook-gateway/server.js]
+    ports: ['127.0.0.1:3100:3100']
+    depends_on: {inventory: {condition: service_healthy},n8n: {condition: service_healthy},n8n-worker: {condition: service_healthy}}
+    healthcheck: {test: ['CMD','node','-e','fetch("http://localhost:3100/health").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'],interval: 5s,timeout: 5s,retries: 20}
+  n8n-runners:
+    image: n8nio/runners:2.45.4@sha256:168fa154306a2b53436e30c1c7b386a37c880cbabd65f0d01e41d11e3c8ea3ce
+    environment:
+      N8N_RUNNERS_TASK_BROKER_URI: http://n8n:5679
+      N8N_RUNNERS_AUTH_TOKEN: ${RUNNER_AUTH_TOKEN}
+    networks: [backend]
+    restart: unless-stopped
+    depends_on: {n8n: {condition: service_healthy}}
+    security_opt: [no-new-privileges:true]
+  worker-runners:
+    image: n8nio/runners:2.45.4@sha256:168fa154306a2b53436e30c1c7b386a37c880cbabd65f0d01e41d11e3c8ea3ce
+    environment:
+      N8N_RUNNERS_TASK_BROKER_URI: http://n8n-worker:5679
+      N8N_RUNNERS_AUTH_TOKEN: ${RUNNER_AUTH_TOKEN}
+    networks: [backend]
+    restart: unless-stopped
+    depends_on: {n8n-worker: {condition: service_healthy}}
+    security_opt: [no-new-privileges:true]
+volumes:
+  postgres-data:
+  redis-data:
+  n8n-data:
+networks:
+  backend: {internal: true}
+  egress: {}
