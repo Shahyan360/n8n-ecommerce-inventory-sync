@@ -56,7 +56,8 @@ services:
       - postgres-data:/var/lib/postgresql
       - ./scripts/postgres-init.sh:/docker-entrypoint-initdb.d/10-app.sh:ro
     ports: ['127.0.0.1:55432:5432']
-    networks: [backend]
+    # A non-internal bridge is needed for the loopback-only host port on Linux.
+    networks: [backend, egress]
     restart: unless-stopped
     healthcheck: {test: ['CMD-SHELL','pg_isready -U commerce_owner -d commerce'], interval: 5s, timeout: 5s, retries: 20}
   redis:

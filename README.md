@@ -10,6 +10,7 @@ Process authenticated Shopify and WooCommerce webhooks, reserve inventory across
 
 ## Explore
 
+- [Try the public demo →](https://n8n-ecommerce-inventory-sync.vercel.app)
 - **Public demo:** the Vercel deployment serves a browser-only simulator, documentation and downloadable workflow JSON. All displayed orders, rates and alerts are illustrative. It has no merchant credentials or operational backend connection.
 - **Full automation:** run the Docker stack below. This exercises real PostgreSQL transactions and actual n8n runtime paths with local mock Shopify/WooCommerce, Shippo and Slack services.
 - **Live integrations:** configure authorized credentials only after completing the [production checklist](docs/PRODUCTION_CHECKLIST.md). Publishing the demo does not activate live operations.
