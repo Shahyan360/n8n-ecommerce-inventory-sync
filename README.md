@@ -15,6 +15,8 @@ Process authenticated Shopify and WooCommerce webhooks, reserve inventory across
 - **Full automation:** run the Docker stack below. This exercises real PostgreSQL transactions and actual n8n runtime paths with local mock Shopify/WooCommerce, Shippo and Slack services.
 - **Live integrations:** configure authorized credentials only after completing the [production checklist](docs/PRODUCTION_CHECKLIST.md). Publishing the demo does not activate live operations.
 
+The public simulator can also be explored inside the author's portfolio. Frame permissions allow only this site, `https://shahyan-khalid-360.vercel.app`, and `http://127.0.0.1:3000`. An origin-checked, nonce-bound bridge acknowledges initialized public UI and relays Escape; it shares no order data or credentials. `npm run test:embed` verifies that boundary.
+
 ## Quick start
 
 Requirements: Node.js **24 LTS**, Docker Engine with Compose v2 or newer, and free loopback ports 3100, 3001, 3002, 5678 and 55432.

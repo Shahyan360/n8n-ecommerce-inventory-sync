@@ -4,7 +4,7 @@ import {fileURLToPath} from 'node:url';
 const webRoot=fileURLToPath(new URL('./',import.meta.url)),root=path.resolve(webRoot,'..'),out=path.resolve(webRoot,'dist');
 if(path.dirname(out)!==path.resolve(webRoot)||path.basename(out)!=='dist')throw new Error('Unsafe build output path');
 await fs.rm(out,{recursive:true,force:true});await fs.mkdir(out,{recursive:true});
-for(const asset of ['index.html','app.mjs','simulator.mjs','styles.css','tokens.css','favicon.svg'])await fs.copyFile(path.join(webRoot,'public',asset),path.join(out,asset));
+for(const asset of ['index.html','app.mjs','portfolio-embed.js','simulator.mjs','styles.css','tokens.css','favicon.svg'])await fs.copyFile(path.join(webRoot,'public',asset),path.join(out,asset));
 await fs.mkdir(path.join(out,'workflows'));
 const descriptions={
   'shopify-ingestion.json':'Authenticated Shopify delivery references enter the reusable processing pipeline.',

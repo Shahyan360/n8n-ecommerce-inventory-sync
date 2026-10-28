@@ -16,6 +16,7 @@
     "verify:stack": "node scripts/verify-stack.mjs",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
+    "test:embed": "node --test scripts/test-portfolio-embed.mjs",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "vitest run tests/e2e",
     "migrate": "tsx scripts/database.ts up",
